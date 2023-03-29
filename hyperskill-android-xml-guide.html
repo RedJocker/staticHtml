@@ -1,0 +1,185 @@
+<article>
+    <h2><strong>7.3 Tests for Android projects with xml layouts</strong></h2>
+    <h3>Here you will learn how to write tests for Android projects using xml/object-oriented layouts.</h3>
+
+    <section>
+        <h4>Project configuration</h4>
+        <p>
+            Projects should begin by cloning the
+            <a href="https://github.com/hyperskill/android-projects-template">
+                <em>Android-Projects-Template</em>
+            </a>.
+            This template will help you start writing an Android project
+            on the HyperSkill platform with the right format.
+        </p>
+        <p>
+            Follow the instructions in <code>README.md</code> inside the root folder of
+            <em>Android-Projects-Template</em> repository to change the general template
+            into your project&rsquo;s initial template.
+        </p>
+        <p>
+            Avoid changing <code>settings.gradle</code> and root level <code>build.gradle</code>.
+            For stage level <code>build.gradle</code>
+            try to add only the extra dependencies you need without changing other parameters.
+            Build config is very sensitive and can be system-dependent,
+            so to prevent users from having build failures
+            we should have only the tested build configuration.
+            Some libraries may require other changes to the build configuration
+            but those should be discussed with track experts and tested properly
+            before being deployed in production.
+        </p>
+    </section>
+    <section>
+        <h4>Robolectric tests</h4>
+        <p>
+            We don't do <em>"instrumentation tests"</em>,
+            that is, tests that run on physical/emulated devices.
+            Those tests don't work well with eduToolsPlugin,
+            and build configuration for that kind of tests is also problematic.
+            Besides that, they are much slower and more demanding in terms of resources
+            (ram and hard disk since we would need to require
+             at least one common emulated device to be installed for all users).
+        </p>
+        <p>
+            Because of that, we only do Robolectric tests.
+            Robolectric runs on a JVM, which means we don't need any devices to run tests, and it runs much faster.
+        </p>
+
+    </section>
+    <section>
+        <h4>Espresso libraries on Robolectric</h4>
+        <p>
+            It is possible to use espresso libraries on Robolectric tests.
+            For that, you need to include the following dependencies
+            on root level <code>build.gradle</code>
+            in the section that has other <code>testImplementation</code> statements:
+        </p>
+        <pre><code>
+testImplementation 'androidx.test.ext:junit:1.1.5'
+testImplementation 'androidx.test.espresso:espresso-core:3.5.1'</code></pre>
+        <p>
+            But, for most common cases, you don't really need them.
+            If you really feel like including espresso libraries,
+            consult with track experts.
+        </p>
+    </section>
+    <section>
+        <h4>Black box testing</h4>
+        <p>
+            One very important aspect of Hyperskill tests is that we should stick to
+            <strong>black box testing</strong>,
+            which means we should not be directly calling
+            functions/classes/identifiers that will be created by the users.
+        </p>
+        <p>
+            At the beginning of any stage, users should be able to invoke tests
+            and receive an appropriate AssertionError without doing any coding.
+            Breaking black box testing by calling functions/classes/identifiers from the implementation side
+            will lead to build failures, which we don't want to happen, ideally.
+        </p>
+        <p>
+            The template provides a function called <code>findViewByString</code> to retrieve views.
+            It should be used by tests instead of <code>findViewById</code> to avoid making direct references to view identifiers.
+            For other identifiers,
+            you can use <code>activity.resource.getIdentifier()</code>
+            that will return an ID number based on the provided <code>idString</code>.
+            The <code>findViewByString</code> method uses
+            <code>activity.resource.getIdentifier()</code>:
+            you can look at its implementation if you have doubts on how to use it.
+        </p>
+        <p>
+            The template will provide a reference to the <code>activity</code> typed as <code>Activity</code>.
+            Don’t cast it to a specific kind of activity like <code>MainActivity</code>
+            — doing so would lead to breaking the black box
+            since you would be reaching the implementation of specific functions/properties.
+        </p>
+        <p>
+            For Activities, we end up having to make direct references
+            to the specific activity class while setting up the activity test.
+            On <strong>single activity projects</strong> this won't result in build failure
+            because we provide the <strong>skeleton</strong> of the <code>MainActivity</code>
+            on the initial template for users.
+        </p>
+        <p>
+            For <strong>projects with multiple activities</strong>, avoiding build failures will probably not be possible,
+            because we will need to make a reference to an activity class that does not exist
+            in user implementation while setting up tests for that activity.
+            You should warn users in your description that such build failure is expected until they create that class.
+        </p>
+        <p>
+            The usual flow of tests interacts with <strong>widgets</strong> (buttons, editText, etc)
+            and then makes assertions on the outcomes
+            (the widget has certain text,
+             a toast was produced and has text,
+             an alertDialog was shown,
+             an intent has been launched,
+             etc.).
+        </p>
+        <p>
+            Because of black box testing, <strong>mocks</strong> will not be used as much as you would expect,
+            because <strong>mocks</strong> generally end up assuming a lot on the implementation side.
+        </p>
+    </section>
+    <section>
+        <h4>Shadows</h4>
+        <p>
+            <strong>Shadow</strong> is a very important concept for <em>Robolectric</em>.
+            They are the secret ingredient that makes running Android code possible on the <em>JVM</em>.
+        </p>
+        <p>
+            Shadows are runtime replacements
+            of actual classes that keep a reference to the instance that is being replaced.
+            Most Android code that will be running during tests is, in fact, Shadows.
+            That is so because Android code expects to run on
+            a physical/emulated device, but Robolectric tests will be running on the JVM.
+        </p>
+        <p>
+            For the most part, you won't notice any difference,
+            but there are some things Shadows will just not do
+            because running code on JVM is not the same as running code on devices.
+            (However, they can act as spies or mocks and be helpful even in these situations.)
+        </p>
+        <p>
+            An example of that is <code>ShadowToast</code>,
+            where toasts are not really shown since there is no device to show them.
+            But the <code>ShadowToast</code> class will act as a spy and store toasts that were supposed to be shown,
+            giving you access to those, so that it is still possible to make assertions on Toasts.
+        </p>
+        <p>
+            It is possible to create <strong>custom shadows</strong>,
+            which can be handy if you need to mock or spy something,
+            but you won’t be able to make shadows for neither
+            <code>java.lang</code> nor <code>java.util</code>.
+            This limitation has to do with the order of class loading.
+            Robolectric class loader is instantiated after some java classes have already been loaded,
+            so it is unable to replace them.
+        </p>
+        <p>
+            <strong>Robolectric libraries</strong> provide shadows for the most common cases.
+            It is also possible to extend existing shadows.
+            You can read more about shadows and creating custom shadows in
+            <a href="https://robolectric.org/extending/">Robolectric documentation</a>.
+        </p>
+    </section>
+    <section>
+        <h4>More information and code examples</h4>
+        <p>
+            The template provides more information in the documents folder. 
+            There you will also find a link to an example repository that contains some examples of tests.
+        </p>
+    </section>
+    <section>
+        <h4>Conclusion</h4>
+        <p>
+            In this section, you learned how to create tests for Android projects.
+            We looked at the project setup and discussed how to do testing in different ways.
+            We covered the main methods of the Test Android library and showed how you can apply them in practice.
+        </p>
+        <p><em>
+            Please note that there are several steps in this lesson.
+            You can move to the next step by clicking the 'Next step' button,
+            using the right and left arrows on your keyboard,
+            or clicking squares from the progress bar at the top of the page.
+        </em></p>
+    </section>
+</article>
